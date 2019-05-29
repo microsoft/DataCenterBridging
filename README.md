@@ -1,3 +1,10 @@
+# Data Center Bridging
+
+DSC PowerShell module intended to deploy Data Center Bridging settings using https://aka.ms/Validate-DCB
+
+## :star: More by the Microsoft Core Networking team
+
+Find more by the core networking team using the [MSFTNet](https://github.com/topics/msftnet) topic
 
 # Contributing
 
