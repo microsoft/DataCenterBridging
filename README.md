@@ -1,4 +1,6 @@
-# Data Center Bridging
+[![Build status](https://ci.appveyor.com/api/projects/status/ya71jrmcb651gqhh?svg=true)](https://ci.appveyor.com/project/MSFTCoreNet/start-cpuburn)
+
+# Description
 
 DSC PowerShell module intended to deploy Data Center Bridging settings using https://aka.ms/Validate-DCB
 
