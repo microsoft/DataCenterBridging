@@ -14,14 +14,10 @@ Describe "$($env:APPVEYOR_BUILD_FOLDER)-Manifest" {
         Import-Module .\$($env:repoName).psd1 -ErrorAction SilentlyContinue
         $Module = Get-Module $($env:repoName) -ErrorAction SilentlyContinue
 
-        It "Should have the $($env:repoName) function available" {
-            $command | Should not BeNullOrEmpty
-        }
-
         'DCBNetQosFlowControl', 'DCBNetAdapterQos', 'DCBNetQosDcbxSetting', 
         'DCBNetQosTrafficClass', 'DCBNetQosPolicy' | ForEach-Object {
             It "Should have exported the DSC Resource: $_" {
-                $_ -in (Get-Module VMNetworkAdapter).ExportedDSCResources | Should Be $true
+                $_ -in $module.ExportedDSCResources | Should Be $true
             }
         }
     }
