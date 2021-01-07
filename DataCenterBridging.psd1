@@ -30,7 +30,7 @@ CompanyName = 'Microsoft'
 Copyright = '(c) 2019 Inc. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'This module provides DSCResources to configure Data Center Bridging on your system(s)'
+Description = 'This module provides DSCResources to configure Data Center Bridging on your system(s) gather LLDP Information'
 
 # Minimum version of the Windows PowerShell engine required by this module
 # PowerShellVersion = ''
@@ -95,7 +95,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = 'MSFTNet','Validate-DCB'
+        Tags = 'MSFTNet','Validate-DCB', 'LLDP'
 
         # A URL to the license for this module.
         # LicenseUri = ''
