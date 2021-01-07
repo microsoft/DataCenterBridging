@@ -69,7 +69,7 @@ Description = 'This module provides DSCResources to configure Data Center Bridgi
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @()
+FunctionsToExport = 'Test-FabricInfo', 'Get-FabricInfo', 'Enable-FabricInfo', 'Start-FabricCapture'
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @()
@@ -81,8 +81,7 @@ VariablesToExport = '*'
 AliasesToExport = @()
 
 # DSC resources to export from this module
-DscResourcesToExport = 'DCBNetQosFlowControl', 'DCBNetAdapterQos', 'DCBNetQosDcbxSetting', 
-               'DCBNetQosPolicy', 'DCBNetQosTrafficClass'
+DscResourcesToExport = 'DCBNetQosFlowControl', 'DCBNetAdapterQos', 'DCBNetQosDcbxSetting', 'DCBNetQosPolicy', 'DCBNetQosTrafficClass'
 
 # List of all modules packaged with this module
 # ModuleList = @()

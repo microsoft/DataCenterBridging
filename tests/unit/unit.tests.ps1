@@ -20,5 +20,11 @@ Describe "$($env:APPVEYOR_BUILD_FOLDER)-Manifest" {
                 $_ -in $module.ExportedDSCResources | Should Be $true
             }
         }
+
+        'Test-FabricInfo', 'Get-FabricInfo', 'Enable-FabricInfo', 'Start-FabricCapture' | ForEach-Object {
+            It "Should have an available command: $_" {
+                $module.ExportedCommands.ContainsKey($_) | Should be $true
+            }
+        }
     }
 }
