@@ -674,8 +674,6 @@ function Test-FabricInfo {
         [String] $SwitchName
     )
 
-    Clear-Host
-
     $pass = '+'
     $fail = '-'
     $testsFailed = 0
@@ -1027,8 +1025,6 @@ function Start-FabricCapture {
         [Parameter(Mandatory=$false)]
         [int] $CaptureTime = 31
     )
-
-    Clear-Host
 
     #region InterfaceNames
     If ($PSBoundParameters.ContainsKey('SwitchName')) {
