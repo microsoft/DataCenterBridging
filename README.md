@@ -3,7 +3,10 @@
 
 # Description
 
-DSC PowerShell module intended to deploy Data Center Bridging settings using https://aka.ms/Validate-DCB
+This module includes two primary capabilities:
+
+- Link Layer Discovery Protocol (LLDP) 802.1AB parser for Windows
+- DSC PowerShell module intended to deploy Data Center Bridging settings using https://aka.ms/Validate-DCB
 
 ## :star: More by the Microsoft Core Networking team
 
