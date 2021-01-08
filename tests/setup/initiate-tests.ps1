@@ -5,7 +5,7 @@
 Get-Module Pester -ListAvailable
 New-Item -Path .\tests -Name results -ItemType Directory -Force | Out-Null
 
-Get-Module Pester
+Import-Module Pester -RequiredVersion '4.9.0'
 
 $testResultPath = '.\tests\results\TestResults.xml'
 # This is a manifest so no code coverage is possible.  Original line kept below:
