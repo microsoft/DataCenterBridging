@@ -985,7 +985,7 @@ function Get-FabricInfo {
     $Mapping = @{}
     $interfaces | ForEach-Object {
         $thisInterfaceName = $_.Name
-        $Mapping.$_ += @{
+        $Mapping.$thisInterfaceName += @{
             Fabric = $InterfaceTable | Where-Object InterfaceName -eq $thisInterfaceName
             InterfaceDetails = $interfaceMap | Where-Object InterfaceName -eq $thisInterfaceName
         }
