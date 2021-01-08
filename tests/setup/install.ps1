@@ -1,9 +1,6 @@
 git clone -q https://github.com/PowerShell/DscResource.Tests
 
 Import-Module -Name "$env:APPVEYOR_BUILD_FOLDER\DscResource.Tests\AppVeyor.psm1"
-Get-Module Pester -ListAvailable
-
-Import-Module -Name Pester -RequiredVersion '4.9.0' -Force
 Invoke-AppveyorInstallTask
 
 $ModuleManifest = Test-ModuleManifest .\$($env:RepoName).psd1 -ErrorAction SilentlyContinue
@@ -12,7 +9,7 @@ $repoRequiredModules = $ModuleManifest.RequiredModules.Name
 if ($repoRequiredModules) { $PowerShellModules += $repoRequiredModules }
 
 # Install the PowerShell Modules
-Install-Module Pester -RequiredVersion '4.9.0' -Force -Confirm:$false -SkipPublisherCheck -AllowClobber -Scope CurrentUser -Repository PSGallery
+Install-Module Pester -RequiredVersion '4.9.0' -Force -Confirm:$false -SkipPublisherCheck -AllowClobber -Repository PSGallery
 
 ForEach ($Module in $PowerShellModules) {
     If (!(Get-Module -ListAvailable $Module -ErrorAction SilentlyContinue)) {
@@ -21,3 +18,6 @@ ForEach ($Module in $PowerShellModules) {
     
     Import-Module $Module
 }
+
+Get-Module Pester -ListAvailable
+Import-Module -Name Pester -RequiredVersion '4.9.0' -Force
