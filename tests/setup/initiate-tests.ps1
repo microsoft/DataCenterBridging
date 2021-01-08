@@ -2,7 +2,10 @@
 # Pester               : https://github.com/pester/Pester/wiki
 # Pester Code Coverage : https://info.sapien.com/index.php/scripting/scripting-modules/testing-pester-code-coverage
 
-New-Item -Path .\tests -Name results -ItemType Directory -Force
+Get-Module Pester -ListAvailable
+New-Item -Path .\tests -Name results -ItemType Directory -Force | Out-Null
+
+Get-Module Pester
 
 $testResultPath = '.\tests\results\TestResults.xml'
 # This is a manifest so no code coverage is possible.  Original line kept below:
