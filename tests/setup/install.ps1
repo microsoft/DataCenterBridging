@@ -1,6 +1,8 @@
 git clone -q https://github.com/PowerShell/DscResource.Tests
 
 Import-Module -Name "$env:APPVEYOR_BUILD_FOLDER\DscResource.Tests\AppVeyor.psm1"
+Get-Module Pester -ListAvailable
+
 Import-Module -Name Pester -RequiredVersion '4.9.0' -Force
 Invoke-AppveyorInstallTask
 
