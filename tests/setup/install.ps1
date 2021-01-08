@@ -20,6 +20,3 @@ ForEach ($Module in $PowerShellModules) {
     
     Import-Module $Module
 }
-
-Get-Module Pester -ListAvailable
-Import-Module -Name Pester -RequiredVersion '4.9.0' -Force

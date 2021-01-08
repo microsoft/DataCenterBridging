@@ -33,7 +33,7 @@ else
         $manifest = Test-ModuleManifest -Path $manifestPath -ErrorAction SilentlyContinue
         [System.Version]$version = $manifest.Version
         Write-Output "Old Version: $version"
-        [String]$newVersion = New-Object -TypeName System.Version -ArgumentList ($version.Major, $version.Minor, $version.Build, $env:APPVEYOR_BUILD_NUMBER)
+        [String]$newVersion = "$(Get-Date -format yyyy.MM.dd).$env:appveyor_build_number"
         Write-Output "New Version: $newVersion"
 
         # Update the manifest with the new version value and fix the weird string replace bug
