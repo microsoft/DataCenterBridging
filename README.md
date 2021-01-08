@@ -1,4 +1,5 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/ya71jrmcb651gqhh?svg=true)](https://ci.appveyor.com/project/MSFTCoreNet/start-cpuburn)
+[![Build status](https://ci.appveyor.com/api/projects/status/ohvjnqqu2o9ccq60?svg=true)](https://ci.appveyor.com/project/MSFTCoreNet/datacenterbridging)
+[![downloads](https://img.shields.io/powershellgallery/dt/datacenterbridging.svg?label=downloads)](https://www.powershellgallery.com/packages/datacenterbridging)
 
 # Description
 
