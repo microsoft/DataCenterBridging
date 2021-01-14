@@ -12,7 +12,7 @@
 RootModule = 'DataCenterBridging.psm1'
 
 # Version number of this module.
-ModuleVersion = '2021.1.14.28'
+ModuleVersion = '2021.1.14.29'
 
 # Supported PSEditions
 # CompatiblePSEditions = @()
