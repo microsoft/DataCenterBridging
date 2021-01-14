@@ -5,8 +5,15 @@
 
 This module includes two primary capabilities:
 
-- Link Layer Discovery Protocol (LLDP) 802.1AB parser for Windows
 - DSC PowerShell module intended to deploy Data Center Bridging settings using https://aka.ms/Validate-DCB
+- Link Layer Discovery Protocol (LLDP) 802.1AB parser for Windows for the following organizationally specific subtypes
+
+| Name           | Organization | Subtype      |
+| :------------- | :----------: | -----------: |
+|  Port VLAN ID TLV (Native VLAN) | 802.1 | 1 |
+| VLAN Name | 802.1 | 3 |
+| Priority-based Flow Control Configuration (PFC) | 802.1 | B |
+| Maximum Frame Size   | 802.3 | 4 |
 
 ## :star: More by the Microsoft Core Networking team
 
