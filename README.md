@@ -10,7 +10,7 @@ This module includes two primary capabilities:
 
 | Name           | Organization | Subtype      |
 | :------------- | :----------: | -----------: |
-|  Port VLAN ID TLV (Native VLAN) | 802.1 | 1 |
+|  Port VLAN (Native VLAN) | 802.1 | 1 |
 | VLAN Name | 802.1 | 3 |
 | Priority-based Flow Control Configuration (PFC) | 802.1 | B |
 | Maximum Frame Size   | 802.3 | 4 |
