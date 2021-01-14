@@ -1,3 +1,4 @@
+#region DCB DSC Resources
 enum Ensure {
     Absent
     Present
@@ -384,6 +385,7 @@ Class DCBNetQosTrafficClass {
         }
     }
 }
+#endregion DCB DSC Resources
 
 #region FabricInfo
 #region Helper Functions (Not Exported)
@@ -714,28 +716,37 @@ function Test-FabricInfo {
         if ($interface.Status -eq 'Up') { $PassFail = $pass }
         Else { $PassFail = $fail; $testsFailed ++ }
 
-        if (-not($PassFail)) { throw "[$PassFail] Is Up: $($interface.Name)"}
-        else { Write-Host "[$PassFail] Is Up: $($interface.Name)" }
+        if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is Up: $($interface.Name)" }
+        else { Write-Host "[$PassFail] Is Up: $($interface.Name)" -ForegroundColor Red }
 
         Remove-Variable PassFail -ErrorAction SilentlyContinue
 
         if ($Interface.MediaType -eq '802.3') { $PassFail = $pass }
         Else { $PassFail = $fail; $testsFailed ++ }
-
-        if (-not($PassFail)) { throw "[$PassFail] Is MediaType 802.3: $($interface.Name)"}
-        else { Write-Host "[$PassFail] Is MediaType 802.3: $($interface.Name)" }
+        
+        if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is MediaType 802.3: $($interface.Name)" }
+        else { Write-Host "[$PassFail] Is MediaType 802.3: $($interface.Name)" -ForegroundColor Red }
 
         Remove-Variable PassFail -ErrorAction SilentlyContinue
     }
     #endregion InterfaceNames
 
     #region LLDP RSAT Tools Install
-    $isLLDPInstalled = Get-WindowsFeature 'RSAT-DataCenterBridging-LLDP-Tools'
+    if ((get-computerinfo).WindowsInstallationType -eq 'Client') {
+        $isLLDPInstalled = Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object Name -like *LLDP*
+        
+        if ($isLLDPInstalled.State -eq 'Installed') { Write-Host "[$Pass] Is Installed: RSAT Data Center Bridging LLDP Tools" }
+        else { 
+            Write-Host "[$Fail] Is Installed: RSAT Data Center Bridging LLDP Tools" -ForegroundColor Red
+            $testsFailed ++ }
+    }
+    else {
+        $isLLDPInstalled = Get-WindowsFeature 'RSAT-DataCenterBridging-LLDP-Tools' -ErrorAction SilentlyContinue
 
-    if ($isLLDPInstalled.Installed) { $PassFail = $pass }
-    Else { $PassFail = $fail; $testsFailed ++ }
-
-    Write-Host "[$PassFail] Is Installed: RSAT-DataCenterBridging-LLDP-Tools"
+        if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is Installed: RSAT-DataCenterBridging-LLDP-Tools" }
+        else { Write-Host "[$PassFail] Is Installed: RSAT-DataCenterBridging-LLDP-Tools" -ForegroundColor Red }
+    }
+    
     Remove-Variable PassFail, isLLDPInstalled -ErrorAction SilentlyContinue
     #endregion
 
@@ -745,19 +756,24 @@ function Test-FabricInfo {
     if ($isEvtLogEnabled) { $PassFail = $pass }
     Else { $PassFail = $fail; $testsFailed ++ }
 
-    Write-Host "[$PassFail] Is Found: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)"
+    if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is Found: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" }
+    else { Write-Host "[$PassFail] Is Found: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" -ForegroundColor Red }
+
     Remove-Variable PassFail -ErrorAction SilentlyContinue
 
     if ($isEvtLogEnabled.IsEnabled) { $PassFail = $pass }
     Else { $PassFail = $fail; $testsFailed ++ }
 
-    Write-Host "[$PassFail] Is Enabled: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)"
+    if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is Enabled: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" }
+    else { Write-Host "[$PassFail] Is Enabled: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" -ForegroundColor Red }
+    
     Remove-Variable PassFail -ErrorAction SilentlyContinue
 
     if ($isEvtLogEnabled.FileSize -lt ($isEvtLogEnabled.MaximumSizeInBytes * .9)) { $PassFail = $pass }
     Else { $PassFail = $fail; $testsFailed ++ }
 
-    Write-Host "[$PassFail] Is NOT Full: Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic"
+    if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is NOT Full: Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic" }
+    else { Write-Host "[$PassFail] Is NOT Full: Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic" -ForegroundColor Red }
     Remove-Variable PassFail -ErrorAction SilentlyContinue
     #endregion
 
@@ -778,14 +794,14 @@ function Test-FabricInfo {
             $testsFailed ++
             $PassFail = $fail
 
-            Write-Host "[$PassFail] Is Found: LLDP Packet for index $thisRemainingIndex"
+            Write-Host "[$PassFail] Is Found: LLDP Packet for index $thisRemainingIndex" -ForegroundColor Red
             Remove-Variable PassFail -ErrorAction SilentlyContinue
         }
     }
     #endregion
 
     if ($testsFailed -eq 0) { Write-Host 'Successfully passed all tests' -ForegroundColor Green }
-    else { Write-Host "Failed $testsFailed tests. Please review the output before continuing" -ForegroundColor Red }
+    else { Write-Host "`rFailed $testsFailed tests. Please review the output before continuing." -ForegroundColor Red }
 }
 
 function Enable-FabricInfo {
@@ -796,9 +812,17 @@ function Enable-FabricInfo {
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
         [String] $SwitchName
     )
+    
+    if ((get-computerinfo).WindowsInstallationType -eq 'Client') {
+        $isLLDPInstalled = Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object Name -like *LLDP*
 
-    $LLDPFeature = Get-WindowsFeature -Name RSAT-DataCenterBridging-LLDP-Tools
-    if ($LLDPFeature.InstallState -ne 'Installed') { Install-WindowsFeature -Name RSAT-DataCenterBridging-LLDP-Tools }
+        if ($isLLDPInstalled.State -ne 'Installed') { Add-WindowsCapability -Name Rsat.LLDP.Tools~~~~0.0.1.0 -Online }
+    }
+    else {
+        $isLLDPInstalled = Get-WindowsFeature -Name RSAT-DataCenterBridging-LLDP-Tools -ErrorAction SilentlyContinue
+
+        if ($isLLDPInstalled.State -ne 'Installed') { Install-WindowsFeature -Name RSAT-DataCenterBridging-LLDP-Tools }
+    }
 
     # Enable NetLLDPAgent and get logs
     $LLDPLog = Get-WinEvent -ListLog Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic
@@ -1088,8 +1112,18 @@ function Start-FabricCapture {
 
         & "$PSScriptRoot\capture\etl2pcapng.exe" "$PSScriptRoot\capture\$StartTime$_.etl" "$PSScriptRoot\capture\$StartTime$_.pcapng" | Out-Null
 
-        Write-Host "`rETL Capture is available at: $("$PSScriptRoot\capture\$StartTime$_.etl")"
-        Write-Host "Wireshark Capture is available at: $("$PSScriptRoot\capture\$StartTime$_.pcapng")"
+        $PCAPNG = Get-Item "$PSScriptRoot\capture\$StartTime$_.pcapng" -ErrorAction SilentlyContinue
+
+        if ($PCAPNG) {
+            Write-Host "`rETL Capture is available at: $("$PSScriptRoot\capture\$StartTime$_.etl")"
+            Write-Host "Wireshark Capture (.pcapng) is available at: $("$PSScriptRoot\capture\$StartTime$_.pcapng")"
+        }
+        else {
+            throw "`rWireshark Capture (.pcapng) was not successfully generated.
+                   `rVerify you the latest C runtime is installed on this system (https://aka.ms/VCRedist) and try again.
+                   `r`rOnce resolved, you can run Start-FabricCapture again, or manually convert the file using the command:`r`r
+                   $PSScriptRoot\capture\etl2pcapng.exe $PSScriptRoot\capture\$StartTime$_.etl $PSScriptRoot\capture\$StartTime$_.pcapng"
+        }
     }
 }
 #endregion Exportable
