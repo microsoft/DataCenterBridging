@@ -732,7 +732,9 @@ function Test-FabricInfo {
     #endregion InterfaceNames
 
     #region LLDP RSAT Tools Install
-    if ((get-computerinfo).WindowsInstallationType -eq 'Client') {
+    $computerInfo = Get-ComputerInfo -Property WindowsInstallationType, csmodel -ErrorAction SilentlyContinue
+
+    if ($computerInfo.WindowsInstallationType -eq 'Client') {
         $isLLDPInstalled = Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object Name -like *LLDP*
         
         if ($isLLDPInstalled.State -eq 'Installed') { Write-Host "[$Pass] Is Installed: RSAT Data Center Bridging LLDP Tools" }
@@ -748,6 +750,14 @@ function Test-FabricInfo {
     }
     
     Remove-Variable PassFail, isLLDPInstalled -ErrorAction SilentlyContinue
+
+    if ($computerInfo.CsModel -ne 'Virtual Machine') {
+        Write-Host "[$Pass] Is Physical Host: True"
+    }
+    else {
+        Write-Host "[$Fail] Is Physical Host: False" -ForegroundColor Red
+        $testsFailed ++
+    }
     #endregion
 
     #region Event log exists and is enabled
@@ -812,8 +822,12 @@ function Enable-FabricInfo {
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
         [String] $SwitchName
     )
+
+    $computerInfo = Get-ComputerInfo -Property WindowsInstallationType, csmodel -ErrorAction SilentlyContinue
+
+    if ($computerInfo.CsModel -eq 'Virtual Machine') { throw 'Cannot be enabled on a virtual machine.' }
     
-    if ((get-computerinfo).WindowsInstallationType -eq 'Client') {
+    if ($computerInfo.WindowsInstallationType -eq 'Client') {
         $isLLDPInstalled = Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object Name -like *LLDP*
 
         if ($isLLDPInstalled.State -ne 'Installed') { Add-WindowsCapability -Name Rsat.LLDP.Tools~~~~0.0.1.0 -Online }
