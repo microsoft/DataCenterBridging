@@ -740,13 +740,17 @@ function Test-FabricInfo {
         if ($isLLDPInstalled.State -eq 'Installed') { Write-Host "[$Pass] Is Installed: RSAT Data Center Bridging LLDP Tools" }
         else { 
             Write-Host "[$Fail] Is Installed: RSAT Data Center Bridging LLDP Tools" -ForegroundColor Red
-            $testsFailed ++ }
+            $testsFailed ++
+        }
     }
     else {
         $isLLDPInstalled = Get-WindowsFeature 'RSAT-DataCenterBridging-LLDP-Tools' -ErrorAction SilentlyContinue
 
-        if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is Installed: RSAT-DataCenterBridging-LLDP-Tools" }
-        else { Write-Host "[$PassFail] Is Installed: RSAT-DataCenterBridging-LLDP-Tools" -ForegroundColor Red }
+        if ($isLLDPInstalled.InstallState -eq 'Installed') { Write-Host "[$Pass] Is Installed: RSAT-DataCenterBridging-LLDP-Tools" }
+        else {
+            Write-Host "[$Fail] Is Installed: RSAT-DataCenterBridging-LLDP-Tools" -ForegroundColor Red
+            $testsFailed ++
+        }
     }
     
     Remove-Variable PassFail, isLLDPInstalled -ErrorAction SilentlyContinue
