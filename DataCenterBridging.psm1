@@ -558,6 +558,7 @@ Function Parse-LLDPPacket {
         $Table += [ordered] @{
             InterfaceName   = (Get-NetAdapter -InterfaceIndex $thisEvent.Properties[0].Value).Name
             InterfaceIndex  = $thisEvent.Properties[0].Value
+            DateTime        = $thisEvent.TimeCreated
 
             Destination     = $Destination # Mandatory
             sourceMac       = $sourceMac   # Mandatory
