@@ -51,7 +51,7 @@ else
         #(Get-Content -Path $manifestPath) -replace 'FunctionsToExport = ', 'FunctionsToExport = @(' | Set-Content -Path $manifestPath -Force
         #(Get-Content -Path $manifestPath) -replace "$($functionList[-1])'", "$($functionList[-1])')" | Set-Content -Path $manifestPath -Force
         
-        Get-FileHash .\DataCenterBridging.psd1, .\DataCenterBridging.psm1 -Algorithm SHA512 | ft -AutoSize | Out-File ".\$($env:RepoName)\tests\sanity.txt"
+        Get-FileHash .\DataCenterBridging.psd1, .\DataCenterBridging.psm1 -Algorithm SHA512 | Format-Table -AutoSize | Out-File ".\tests\sanity.txt"
     }
     catch
     {
