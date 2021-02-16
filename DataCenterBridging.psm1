@@ -840,7 +840,7 @@ function Enable-FabricInfo {
     else {
         $isLLDPInstalled = Get-WindowsFeature -Name RSAT-DataCenterBridging-LLDP-Tools -ErrorAction SilentlyContinue
 
-        if ($isLLDPInstalled.State -ne 'Installed') { Install-WindowsFeature -Name RSAT-DataCenterBridging-LLDP-Tools }
+        if ($isLLDPInstalled.InstallState -ne 'Installed') { Install-WindowsFeature -Name RSAT-DataCenterBridging-LLDP-Tools }
     }
 
     # Enable NetLLDPAgent and get logs
