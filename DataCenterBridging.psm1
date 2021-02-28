@@ -395,6 +395,9 @@ Function Get-Interfaces {
         [String[]] $InterfaceNames,
 
         [Parameter(Mandatory=$false)]
+        [String[]] $InterfaceIndex,
+
+        [Parameter(Mandatory=$false)]
         [String] $SwitchName
     )
 
@@ -403,6 +406,7 @@ Function Get-Interfaces {
         $Interfaces   = Get-NetAdapter -InterfaceDescription $VMSwitchTeam.NetAdapterInterfaceDescription
     }
     elseif ($InterfaceNames) { $Interfaces = Get-NetAdapter -Name $InterfaceNames }
+    elseif ($InterfaceIndex) { $Interfaces = Get-NetAdapter -InterfaceIndex $InterfaceIndex }
 
     Return $Interfaces
 }
@@ -673,6 +677,9 @@ function Test-FabricInfo {
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceNames', Position=0)]
         [String[]] $InterfaceNames,
 
+        [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceIndex')]
+        [String[]] $InterfaceIndex,
+
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
         [String] $SwitchName
     )
@@ -709,6 +716,9 @@ function Test-FabricInfo {
             break
         }
         Else { $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames }
+    }
+    ElseIf ($PSBoundParameters.ContainsKey('InterfaceIndex')) {
+        $Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
     }
 
     $remainingIndexes = $Interfaces.ifIndex
@@ -824,6 +834,9 @@ function Enable-FabricInfo {
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceNames', Position=0)]
         [String[]] $InterfaceNames,
 
+        [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceIndex')]
+        [String[]] $InterfaceIndex,
+
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
         [String] $SwitchName
     )
@@ -885,6 +898,9 @@ function Enable-FabricInfo {
         }
         Else { $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames }
     }
+    ElseIf ($PSBoundParameters.ContainsKey('InterfaceIndex')) {
+        $Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
+    }
 
     $remainingIndexes = $Interfaces.ifIndex
 
@@ -898,6 +914,9 @@ function Get-FabricInfo {
     param (
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceNames', Position=0)]
         [String[]] $InterfaceNames,
+
+        [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceIndex')]
+        [String[]] $InterfaceIndex,
 
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
         [String] $SwitchName
@@ -931,6 +950,9 @@ function Get-FabricInfo {
             break
         }
         Else { $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames }
+    }
+    ElseIf ($PSBoundParameters.ContainsKey('InterfaceIndex')) {
+        $Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
     }
 
     $remainingIndexes = $Interfaces.ifIndex
@@ -1061,6 +1083,9 @@ function Start-FabricCapture {
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceNames', Position=0)]
         [String[]] $InterfaceNames,
 
+        [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceIndex')]
+        [String[]] $InterfaceIndex,
+
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
         [String] $SwitchName,
 
@@ -1097,6 +1122,9 @@ function Start-FabricCapture {
             break
         }
         Else { $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames }
+    }
+    ElseIf ($PSBoundParameters.ContainsKey('InterfaceIndex')) {
+        $Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
     }
     #endregion InterfaceNames
 
