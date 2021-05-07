@@ -435,7 +435,7 @@ Function Get-LLDPEvents {
     param ($RemainingIndexes)
 
     $EventPerInterface = @()
-    :enoughEvents while ($remainingIndexes -ne $Null) {
+    :enoughEvents while ($Null -ne $remainingIndexes) {
         $CuratedEvents = Get-WinEvent -LogName Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic -Oldest -ErrorAction SilentlyContinue |
             Where-Object { $_.ID -eq 10041 -and $_.TimeCreated -ge (Get-Date).AddMinutes(-5)} | Sort-Object TimeCreated -Descending
 
@@ -448,13 +448,13 @@ Function Get-LLDPEvents {
             }
 
             # Note: We only want one event per index, so we'll break here if we received enough events
-            if ($remainingIndexes -eq $null) {break enoughEvents}
+            if ($null -eq $remainingIndexes) {break enoughEvents}
         }
 
         break enoughEvents
     }
 
-    if ($RemainingIndexes -ne $Null) { $global:IndexesMissingEvents = $RemainingIndexes }
+    if ($Null -ne $RemainingIndexes) { $global:IndexesMissingEvents = $RemainingIndexes }
 
     return $EventPerInterface
 }
@@ -910,59 +910,115 @@ function Enable-FabricInfo {
     Write-Host    'Please run Test-FabricInfo to determine if all requirements have been met'
 }
 
-function Get-FabricInfo {
+function Get-FabricInfo 
+{
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceNames', Position=0)]
-        [String[]] $InterfaceNames,
+        [String[]] 
+        $InterfaceNames,
 
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceIndex')]
-        [String[]] $InterfaceIndex,
+        [String[]] 
+        $InterfaceIndex,
 
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
-        [String] $SwitchName
+        [String] 
+        $SwitchName
     )
 
-    If ($PSBoundParameters.ContainsKey('SwitchName')) {
+    If ($PSBoundParameters.ContainsKey('SwitchName')) 
+    {
         $VMSwitch     = Get-VMSwitch -Name $SwitchName -ErrorAction SilentlyContinue
         $VMSwitchTeam = Get-VMSwitchTeam -Name $SwitchName -ErrorAction SilentlyContinue
 
-        if ($VMSwitch -and $VMSwitchTeam) { $Interfaces = Get-Interfaces -SwitchName $SwitchName }
-        Else { Write-Host "`'$SwitchName`' is not a Switch Embedded Team" -ForegroundColor Red ; break }
+        if ($VMSwitch -and $VMSwitchTeam) 
+        { 
+            $Interfaces = Get-Interfaces -SwitchName $SwitchName 
+        }
+        else 
+        { 
+            # jakehr: using {return (Write-Error -EA Stop)} will send a terminating error back to the calling program and ends function execution. Good for automation.
+            return (Write-Error "'$SwitchName' is not a Switch Embedded Team" -EA Stop)
+        }
     }
-    Elseif ($PSBoundParameters.ContainsKey('InterfaceNames')) {
-        $NetAdapters = Get-NetAdapter -Name $InterfaceNames -ErrorAction SilentlyContinue
+    elseif ($PSBoundParameters.ContainsKey('InterfaceNames')) 
+    {
+        [array]$NetAdapters = Get-NetAdapter -Name $InterfaceNames -ErrorAction SilentlyContinue
         # Not sure I understand this PowerShell funkyness but if I have only 1 adapter, the 'Count' Method is not available
         #     Therefore, we need to check if there's only 1 interface name and make sure there's an entry in NetAdapters
         #     Or check that there are more than 1 adapter
+        #
+        #  jakehr: typecast the variable as [array] to fix the funkiness.
 
-        if ($NetAdapters.Count) { $AdapterCount = $NetAdapters.Count }
-        elseif ($NetAdapters) { $AdapterCount = 1 }
-        else { $AdapterCount = 0 }
+        $AdapterCount = $NetAdapters.Count
 
-        If (-not($InterfaceNames.Count -eq $AdapterCount)) {
-            if ($NetAdapters) {
-                foreach ($Adapter in ($InterfaceNames -notmatch $NetAdapters.Name)) {
-                    Write-Host "The interface `'$Adapter`' was not found" -ForegroundColor Red
+        If (-not($InterfaceNames.Count -eq $AdapterCount)) 
+        {
+            if ($NetAdapters) 
+            {
+                foreach ($Adapter in ($InterfaceNames -notmatch $NetAdapters.Name)) 
+                {
+                    $enumError = "The interface `'$Adapter`' was not found"
                 }
             }
-            Else { Write-Host "No interfaces found with the specified names" -ForegroundColor Red }
+            else 
+            { 
+                $enumError = "No interfaces found with the specified names"
+            }
 
-            break
+            #break  <<<<< jakehr: implies we always leave Get-FabricInfo in this code path, so converting this to a terminating error return
+            return (Write-Error "Interface enumeration failure. $enumError" -EA Stop)
         }
-        Else { $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames }
+        else 
+        { 
+            $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames 
+        }
     }
-    ElseIf ($PSBoundParameters.ContainsKey('InterfaceIndex')) {
-        $Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
+    elseIf ($PSBoundParameters.ContainsKey('InterfaceIndex')) 
+    {
+        [array]$Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
+
+        if (-NOT $Interfaces)
+        {
+            return (Write-Error "Interface enumeration failure. The interface index(es) were not found: $($InterfaceIndex -join ", ")" -EA Stop)
+        }
+    }
+
+    if (-NOT $SwitchName)
+    {
+        $VMSwitchTeam = Get-VMSwitchTeam -EA SilentlyContinue
+
+        if ($VMSwitchTeam)
+        {
+            $SwitchName = $VMSwitchTeam | Where-Object { $_.NetAdapterInterfaceDescription[0] -in ($Interfaces.InterfaceDescription) } | ForEach-Object Name
+
+            if (-NOT $SwitchName)
+            {
+                return (Write-Error "Failed to discover a Switch Embedded Team." -EA Stop)
+            }
+        }
+        else
+        {
+            return (Write-Error "Failed to discover a Switch Embedded Team." -EA Stop)
+        }
+        
+        
     }
 
     $remainingIndexes = $Interfaces.ifIndex
 
     $event = Get-LLDPEvents -RemainingIndexes $remainingIndexes
 
-    if ($event.count -ne $remainingIndexes.Count) {
-        Write-Host "Could not find an LLDP Packet one or more of the interfaces specified. Please run Test-FabricInfo." -ForegroundColor Red
+    if ($event.count -ne $remainingIndexes.Count) 
+    {
+        # jakehr: convert to warning text from scary red text    
+        Write-Warning "Could not find an LLDP Packet one or more of the interfaces specified. Please run Test-FabricInfo."
     }
-    Else { $InterfaceTable = Parse-LLDPPacket -Events $event }
+    else 
+    { 
+        $InterfaceTable = Parse-LLDPPacket -Events $event 
+    }
 
     #Convert To/From JSON to make a simple object with property names
     $JsonTable = $InterfaceTable | ConvertTo-Json
@@ -977,19 +1033,49 @@ function Get-FabricInfo {
     $HostNetAdapters = @()
     $interfaceMap = @()
 
-    $HostVNICTeamMap = Get-VMNetworkAdapterTeamMapping -ManagementOS | Where-Object NetAdapterName -in $Interfaces.Name
-    $Interfaces | ForEach-Object {
-        $thisInterface = $_
+    # force array since there may only be a single vNIC team map, or a single NIC "team"
+    [array]$HostVNICTeamMap = Get-VMNetworkAdapterTeamMapping -ManagementOS | Where-Object NetAdapterName -in $Interfaces.Name
+
+    foreach ($thisInterface in $Interfaces)
+    {
+        #$thisInterface = $_
         $InterfaceBinding = Get-NetAdapterBinding -Name $thisInterface.Name -ComponentID ms_tcpip, vms_pp
 
-        if (($InterfaceBinding | Where-Object ComponentID -eq 'vms_pp').Enabled -eq $true ) {
-            $thisHostVNICParentAdapter = ($HostVNICTeamMap | Where-Object NetAdapterName -eq $thisInterface.Name).ParentAdapter
-            $HostNetAdapterWithIP = Get-NetAdapter -Name $thisHostVNICParentAdapter.Name
+        if (($InterfaceBinding | Where-Object ComponentID -eq 'vms_pp').Enabled -eq $true ) 
+        {
+            if ($HostVNICTeamMap)
+            {
+                try
+                {
+                    $thisHostVNICParentAdapter = ($HostVNICTeamMap | Where-Object NetAdapterName -eq $thisInterface.Name).ParentAdapter
+                    [array]$HostNetAdapterWithIP = Get-NetAdapter -Name $thisHostVNICParentAdapter.Name
+                }
+                catch
+                {
+                    Write-Verbose "This interface ($($thisInterface.Name)) does not have a team mapping. Defaulting to all host vNICs."
+                }
+            }
         }
-        Else { $HostNetAdapterWithIP = $thisInterface }
+        else 
+        { 
+            [array]$HostNetAdapterWithIP = $thisInterface 
+        }
 
-        $HostNetAdapterWithIP | ForEach-Object {
-            $thisHostNetAdapter = $_
+        # This handles situations where there are no mappings between pNIC and host vNIC, which means no host vNICs parent waw discovered
+        # In this scenario we can assume $thisInterface is a pNIC without a map.
+        if (-NOT $HostNetAdapterWithIP)
+        {
+            $thisHostVNICParentAdapter = $thisInterface
+
+            # since any host net adapter can use this interface we make HostNetAdapterWithIP equal to all host vNICs on the SET switch
+            # match on mac address since VMNetworkAdapter and NetAdapter names may not be equal, and exclude the active pNIC
+            [array]$HostvNicMacs = Get-VMNetworkAdapter -ManagementOS -SwitchName $SwitchName -EA SilentlyContinue | ForEach-Object { $_.MacAddress -replace '..(?!$)', '$&-' }
+            $HostNetAdapterWithIP = Get-NetAdapter | Where-Object { $_.MacAddress -in $HostvNicMacs -and $_.InterfaceDescription -match "Hyper-V" }
+        }
+
+        foreach ($thisHostNetAdapter in $HostNetAdapterWithIP)
+        {
+            #$thisHostNetAdapter = $_
             $thisIP = Get-NetIPAddress -InterfaceIndex $thisHostNetAdapter.ifIndex -AddressFamily IPv4
 
             if ($thisIP) {
@@ -1005,12 +1091,15 @@ function Get-FabricInfo {
                 $thisHostNetAdapterInterfaceDetails.Subnet = "$($thisHostNetAdapterInterfaceDetails.Network)/$($thisHostNetAdapterInterfaceDetails.PrefixLength)"
 
                 # Device is virtual
-                if ($thisHostNetAdapter.ConnectorPresent -eq $false) {
-                    if ($thisHostVNICParentAdapter.IsolationSetting.IsolationMode -eq 'VLAN') {
+                if ($thisHostNetAdapter.ConnectorPresent -eq $false) 
+                {
+                    if ($thisHostVNICParentAdapter.IsolationSetting.IsolationMode -eq 'VLAN') 
+                    {
                         $thisHostNetAdapterInterfaceDetails.VLAN = $thisHostVNICParentAdapter.IsolationSetting.DefaultIsolationID
                     }
 
-                    Switch ($thisHostVNICParentAdapter.VlanSetting.OperationMode) {
+                    Switch ($thisHostVNICParentAdapter.VlanSetting.OperationMode) 
+                    {
                         'Access' { $thisHostNetAdapterInterfaceDetails.VLAN = $thisHostVNICParentAdapter.VlanSetting.AccessVLANID }
                         'Trunk' { $thisHostNetAdapterInterfaceDetails.VLAN = $thisHostVNICParentAdapter.VlanSetting.NativeVlanId }
                     }
@@ -1018,7 +1107,8 @@ function Get-FabricInfo {
                     $thisHostNetAdapterInterfaceDetails.VMNetworkAdapterName = $thisHostVNICParentAdapter.Name
                     $thisHostNetAdapterInterfaceDetails.NetAdapterHostVNICName = $HostNetAdapterWithIP.Name
                 }
-                Else {
+                else 
+                {
                     $thisHostNetAdapterInterfaceDetails.VLAN = (Get-NetAdapterAdvancedProperty -Name $thisHostNetAdapter.Name -RegistryKeyword VLANID -ErrorAction SilentlyContinue).RegistryValue
                 }
 
@@ -1045,6 +1135,8 @@ function Get-FabricInfo {
                 $interfaceMap += $interfaceDetails
             }
         }
+
+        Remove-Variable HostNetAdapterWithIP -EA SilentlyContinue
     }
 
     $Mapping = @{}
