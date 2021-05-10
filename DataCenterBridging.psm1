@@ -431,18 +431,26 @@ Function Invoke-BitShift {
     Return [math]::Floor($x * [math]::Pow(2,$shift))
 }
 
-Function Get-LLDPEvents {
+Function Get-LLDPEvents 
+{
     param ($RemainingIndexes)
 
     $EventPerInterface = @()
     :enoughEvents while ($Null -ne $remainingIndexes) {
-        $CuratedEvents = Get-WinEvent -LogName Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic -Oldest -ErrorAction SilentlyContinue |
-            Where-Object { $_.ID -eq 10041 -and $_.TimeCreated -ge (Get-Date).AddMinutes(-5)} | Sort-Object TimeCreated -Descending
+        #$CuratedEvents = Get-WinEvent -LogName Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic -Oldest -ErrorAction SilentlyContinue |
+        #    Where-Object { $_.ID -eq 10041 -and $_.TimeCreated -ge (Get-Date).AddMinutes(-5)} | Sort-Object TimeCreated -Descending
 
-        $CuratedEvents | ForEach-Object {
-            $thisEvent = $_
+        # search for matches using the appropriate filter
+        [hashtable]$eventFilter = @{LogName='Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic'; ID=10041; StartTime=$(Get-Date).AddMinutes(-5)}
 
-            if ($remainingIndexes -contains $thisEvent.Properties[0].Value) {
+        [array]$CuratedEvents = Get-WinEvent -FilterHashtable $eventFilter -Oldest -EA SilentlyContinue | Sort-Object TimeCreated -Descending
+
+        foreach ($thisEvent in $CuratedEvents)
+        {
+            #$thisEvent = $_
+
+            if ($remainingIndexes -contains $thisEvent.Properties[0].Value) 
+            {
                 $remainingIndexes = $remainingIndexes | Where-Object { $_ -ne $thisEvent.Properties[0].Value }
                 $EventPerInterface += $thisEvent
             }
@@ -459,6 +467,442 @@ Function Get-LLDPEvents {
     return $EventPerInterface
 }
 
+
+function Convert-Bytes2IP
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [byte[]]
+        $ipBytes
+    )
+
+    # get them bits
+    $IPBinary = (([System.BitConverter]::ToString($ipBytes).Replace('-','')).ToCharArray() | & { process { [System.Convert]::ToString([byte]"0x$_",2).PadLeft(4,'0') } }) -join ''
+
+    try
+    {
+        $IP = ([System.Net.IPAddress]"$([System.Convert]::ToInt64($IPBinary,2))").IPAddressToString
+    }
+    catch
+    {
+        Write-Warning "Convert-Bytes2IP - Failed to convert bytes to IP address: $_"
+        return $null
+    }
+
+    return $IP
+}
+
+
+# https://www.ieee802.org/1/files/public/docs2002/LLDP%20Overview.pdf
+
+function Get-LldpTlv
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [byte[]]
+        $tlvBytes
+    )
+
+    Write-Verbose "Get-LldpTlv - Begin"
+    Write-Verbose "Get-LldpTlv - Bytes: $($tlvBytes -join ", ")"
+
+    # skip processing if we hit the end
+    if ($tlvBytes[0] -eq 0)
+    {
+        return ([PSCustomObject]@{
+            Type = 0
+            Len  = 0
+        })
+    }
+
+    # get them bits
+    $rawBits = (([System.BitConverter]::ToString($tlvBytes).Replace('-','')).ToCharArray() | & { process { [System.Convert]::ToString([byte]"0x$_",2).PadLeft(4,'0') } }) -join ''
+
+    Write-Verbose "Get-LldpTlv - bits: $rawBits"
+
+    $tlvType = [convert]::ToInt32($rawBits.Substring(0,7), 2)
+    Write-Verbose "Get-LldpTlv - Type: $tlvType"
+
+    $tlvLen = [convert]::ToInt32($rawBits.Substring(7,9), 2)
+    Write-Verbose "Get-LldpTlv - Length: $tlvLen"
+    
+    Write-Verbose "Get-LldpTlv - End"
+    return ([PSCustomObject]@{
+        Type = $tlvType
+        Len  = $tlvLen
+    })
+}
+
+
+function Get-TlvChassisId
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [byte[]]
+        $chasBytes
+    )
+
+    # get the Chassis ID Subtype
+    [int]$chasIdType = "0x$($chasBytes[0])"
+
+    switch -Regex ($chasIdType)
+    {
+        "[1-3]"
+        {
+            # convert bytes to string
+            return ( [System.Text.Encoding]::ASCII.GetString($chasBytes[1..($chasBytes.Length - 1)]) )
+        }
+        "4"
+        {
+            # MAC address
+            return ("{0:X2}:{1:X2}:{2:X2}:{3:X2}:{4:X2}:{5:X2}" -f $chasBytes[1..($chasBytes.Length - 1)])
+        }
+
+        "5"
+        {
+            # management address
+            return (Convert-Bytes2IP ($chasBytes[1..($chasBytes.Length - 1)]) )
+        }
+
+        Default
+        {
+            Write-Warning "Unknown Chassis ID type: $chasIdType"
+            return "Unknown"
+        }
+    }
+}
+
+
+function Get-TlvPortId
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [byte[]]
+        $portBytes
+    )
+
+    # get the Chassis ID Subtype
+    [int]$portIdType = "0x$($portBytes[0])"
+
+    Write-Verbose "Get-TlvPortId - Port Type: $portIdType"
+
+    switch -Regex ($portIdType)
+    {
+        "[1-2]|[5]"
+        {
+            # convert bytes to string
+            return ( [System.Text.Encoding]::ASCII.GetString($portBytes[1..($portBytes.Length - 1)]) )
+        }
+        "3"
+        {
+            # MAC address
+            return ("{0:X2}:{1:X2}:{2:X2}:{3:X2}:{4:X2}:{5:X2}" -f $portBytes[1..($portBytes.Length - 1)])
+        }
+
+        "4"
+        {
+            # management address
+            return (Convert-Bytes2IP ($portBytes[1..($portBytes.Length - 1)]) )
+        }
+
+        Default
+        {
+            Write-Warning "Unknown Port ID type: $portIdType"
+            return "Unknown"
+        }
+    }
+}
+
+
+function Get-LldpPfc
+{
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [byte[]]
+        $portBytes
+    )
+
+    $rawBits = (([System.BitConverter]::ToString($portBytes).Replace('-','')).ToCharArray() | & { process { [System.Convert]::ToString([byte]"0x$_",2).PadLeft(4,'0') } }) -join ''
+    
+    # PFC flags to Int
+    $intPFC = [convert]::ToInt32($rawBits.Substring(8), 2)
+
+    # only return Priorities for now
+    return ([enum]::GetValues([PFC_Priorities]) | Where-Object {$_.value__ -band $intPFC} | ForEach-Object {$_.ToString()})
+
+}
+
+
+
+
+function Parse-LLDPPacket {
+    param ($Events)
+
+    $Table = @()
+
+    [hashtable]$tlvTable = [ordered]@{
+        End                  = 0
+        ChassisId            = 1
+        PortId               = 2
+        TimeToLive           = 3
+        PortDescription      = 4
+        SystemName           = 5
+        SystemDesc           = 6
+        OrganizationSpecific = 127
+    }
+    
+    [Flags()] enum PFC_Priorities {
+        Priority0 = 1
+        Priority1 = 2
+        Priority2 = 4
+        Priority3 = 8
+        Priority4 = 16
+        Priority5 = 32
+        Priority6 = 64
+        Priority7 = 128
+    }
+
+    foreach ($thisEvent in $Events)
+    {
+        $bytes = $thisEvent.Properties[3].Value
+
+        # the LLDP header always starts at offset 14
+        $offset = 14
+
+        # keeps track of VLAN IDs
+        [int[]]$VLANID = @()
+
+        # parse the ethernet header
+        $ethDst = "{0:X2}:{1:X2}:{2:X2}:{3:X2}:{4:X2}:{5:X2}" -f $bytes[0..5]
+        $ethSrc = "{0:X2}:{1:X2}:{2:X2}:{3:X2}:{4:X2}:{5:X2}" -f $bytes[6..11]
+        $ethType = "0x$([BitConverter]::ToString($bytes[12]) + [BitConverter]::ToString($bytes[13]))"
+
+
+        ## parse the LLDP header ##
+
+        # parse until the "End of LLDPDU" TLV is reached (00 00)
+        $EndOfLLDPDU = $false
+
+        while ($EndOfLLDPDU -eq $false)
+        {
+            # parse the TLV
+            Write-Verbose "tlv header: $($bytes[$offset..($offset+1)] -join ", ")"
+            $TLV = Get-LldpTlv $bytes[$offset..($offset+1)]
+
+            # offset + 2 (TLV bytes) + TLV Length - 1 (to compensate for index starting at 0)
+            $tlvEnd = $offset + 2 + $TLV.Len - 1 
+
+            switch ($TLV.Type)
+            {
+                #region
+                $tlvTable.End
+                {
+                    $EndOfLLDPDU = $true
+                    break
+                }
+                
+                $tlvTable.ChassisId
+                {
+                    # just need the string Chassis ID back
+                    $ChassisID = Get-TlvChassisId $bytes[($offset+2)..$tlvEnd]
+                    break
+                }
+
+                $tlvTable.PortId
+                {
+                    $PortId = Get-TlvPortId $bytes[($offset+2)..$tlvEnd]
+                    break
+                }
+
+                <#
+                $tlvTable.TimeToLive
+                {
+                    [int]$tlvTTL = "0x$(($bytes[($offset+2)..$tlvEnd] | ForEach-Object { "{0:X2}" -f $_ }) -join '')"
+                    break
+                }
+                #>
+
+                $tlvTable.PortDescription
+                {
+                    $PortDescription = [System.Text.Encoding]::ASCII.GetString($bytes[($offset+2)..$tlvEnd])
+                    break
+                }
+
+                $tlvTable.SystemName
+                {
+                    $SystemName = [System.Text.Encoding]::ASCII.GetString($bytes[($offset+2)..$tlvEnd])
+                    break
+                }
+
+                $tlvTable.SystemDesc
+                {
+                    $SystemDesc = [System.Text.Encoding]::ASCII.GetString($bytes[($offset+2)..$tlvEnd])
+                    break
+                }
+                #endregion
+
+                $tlvTable.OrganizationSpecific
+                {
+                    <#
+                        We only care about the following org codes and subtypes:
+
+                            Code 00:12:0f (IEEE 802.3) - Subtype 0x04 (MTU)
+                            Code 00:80:c2 (IEEE) - Subtype 0x0b (PFC)
+                            Code 00:80:c2 (IEEE) - Subtype 0x01 (Default VLAN)
+                            Code 00:80:c2 (IEEE) - Subtype 0x03 (Port VLANs|VLAN Name)  --->  There can be multiple entries for this subtype, one for each advertised VLAN.
+                    
+                    #>
+                    # org code
+                    $orgCode = "{0:X2}:{1:X2}:{2:X2}" -f $bytes[($offset+2)..($offset+4)]
+
+                    switch ($orgCode)
+                    {
+                        "00:80:C2"
+                        {
+                            # Get the subtype
+                            $subtype = $bytes[($offset+5)]
+
+                            switch ($subtype)
+                            {
+                                1
+                                {
+                                    # Port VLAN ID (default) - can be up to 2 bytes (4096) in length
+                                    #$NativeVLAN = Convert-Bytes2Int $bytes[($offset+6)..$tlvEnd]
+                                    $NativeVLAN = [convert]::ToInt32( (($bytes[($offset+6)..$tlvEnd] | & { process { [System.Convert]::ToString($_,2).PadLeft(8,'0') } } ) -join ''), 2)
+                                    break
+                                }
+
+                                3
+                                {
+                                    # VLAN ID = first 2 bytes after the subtype
+                                    #$VLANID += Convert-Bytes2Int $bytes[($offset+6)..($offset+7)]
+                                    $VLANID += [convert]::ToInt32( (($bytes[($offset+6)..($offset+7)] | & { process { [System.Convert]::ToString($_,2).PadLeft(8,'0') } } ) -join ''), 2)
+
+                                    # 1 byte for the length of the name
+                                    # but first make sure we aren't at the end of the TLV by checking if the last byte of the VLAN ID is less than tlvEnd
+                                    # we don't care about the VLAN Name right now, but I'll leave this code in here in case we do in the future.
+                                    <#
+                                    if ( ($offset+7) -lt $tlvEnd )
+                                    {
+                                        # ($offset+8) thru $tlvEnd should be the string VLAN name. Skipping additional checks for speed.
+                                        $vlanName = [System.Text.Encoding]::ASCII.GetString($bytes[($offset+8)..$tlvEnd])
+                                    }
+                                    #>
+
+                                    break
+                                }
+
+                                11
+                                {
+                                    # get PFC stuff
+                                    $PFC = Get-LldpPfc $bytes[($offset+6)..$tlvEnd]
+                                }
+
+                                default
+                                {
+                                    Write-Verbose "Ignoring Organization Unique Code 00:80:C2 (IEEE), subtype $subType."
+                                    Remove-Variable tlvName -EA SilentlyContinue
+                                    break
+                                }
+                            }
+                            break
+                        }
+
+                        "00:12:0f"
+                        {
+                            # Get the subtype
+                            $subtype = $bytes[($offset+5)]
+
+                            
+                            switch ($subtype)
+                            {
+                                4
+                                {
+                                    # frame size (MTU)
+                                    #$FrameSize = Convert-Bytes2Int $bytes[($offset+6)..($offset+7)]
+                                    $FrameSize = [convert]::ToInt32( (($bytes[($offset+6)..($offset+7)] | & { process { [System.Convert]::ToString($_,2).PadLeft(8,'0') } } ) -join ''), 2)
+                                }
+
+                                default
+                                {
+                                    Write-Verbose "Ignoring Organization Unique Code 00:12:0f (IEEE 802.3), subtype $subType."
+                                    break
+                                }
+                            }
+                            break
+                        }
+
+                        default
+                        {
+                            Write-Verbose "Ignoring Organization Unique Code $orgCode."
+                            Remove-Variable tlvName -EA SilentlyContinue
+                            break
+                        }
+                    }
+                }
+
+                default
+                {
+                    $knownTlv = ($tlvTable.GetEnumerator() | Where-Object Value -eq $TLV.Type)
+                    if ($knownTlv) {
+                        $tlvName = $knownTlv.Name
+                    }
+
+                    Write-Verbose "Ignoring TLV $($TLV.Type)$( if ($tlvName) { " ($tlvName)" })."
+                    Remove-Variable tlvName, knownTlv -EA SilentlyContinue
+                    break
+                }
+            }
+
+            # increment offset to the start of the next TLV
+            $offset = $tlvEnd + 1
+        }
+
+
+        # Set defaults in case the switch doesn't provide the information and guide the customer in their troubleshooting
+        if (-not($PortDescription)) { $PortDescription = 'Information Not Provided By Switch' }
+        if (-not($PortId)) { $PortId = 'Information Not Provided By Switch' }
+        if (-not($SystemName)) { $SystemName = 'Information Not Provided By Switch' }
+        if (-not($SystemDesc)) { $SystemDesc = 'Information Not Provided By Switch' }
+        if (-not($NativeVLAN)) { $NativeVLAN = 'Information Not Provided By Switch' }
+        if (-not($VLANID))     { [string]$VLANID = 'Information Not Provided By Switch' }
+        if (-not($FrameSize))  { $FrameSize  = 'Information Not Provided By Switch' }
+        if (-not($PFC)) { $PFC  = 'Information Not Provided By Switch' }
+
+        $Table += [ordered] @{
+            InterfaceName   = (Get-NetAdapter -InterfaceIndex $thisEvent.Properties[0].Value).Name
+            InterfaceIndex  = $thisEvent.Properties[0].Value
+            DateTime        = $thisEvent.TimeCreated
+            
+            Destination     = $ethDst # Mandatory
+            sourceMac       = $ethSrc   # Mandatory
+            EtherType       = $ethType   # Mandatory
+            ChassisID       = $ChassisID   # Mandatory
+            PortID          = $PortId     # Mandatory
+
+            PortDescription = $PortDescription # Optional
+            SystemName      = $SystemName      # Optional
+            SystemDesc      = $SystemDesc      # Optional
+
+
+            NativeVLAN = $NativeVLAN        # IEEE 802.1 TLV:127 Subtype:1
+            VLANID     = $VLANID            # IEEE 802.1 TLV:127 Subtype:3
+            FrameSize  = $FrameSize         # IEEE 802.3 TLV:127 Subtype:4
+            PFC        = $PFC | Sort-Object # IEEE 802.1 TLV:127 Subtype:11
+
+            Bytes = $bytes # Raw Data from Packet
+        }
+    }
+
+    return $Table
+}
+
+<#
 Function Parse-LLDPPacket {
     param ($Events)
 
@@ -583,6 +1027,7 @@ Function Parse-LLDPPacket {
 
     Return $Table
 }
+#>
 #endregion LLDP
 
 #region HostMap
