@@ -30,6 +30,10 @@ Or install this module individually using this command:
 To see all modules from the Microsoft Core Networking team, please use:
 ```Find-Module -Tag MSFTNet```
 
+# Usage
+
+Please refer to the following blog for information on how to use the FabricInfo tools [Troubleshooting Switch Misconfiguration](https://techcommunity.microsoft.com/t5/networking-blog/troubleshooting-switch-misconfiguration/ba-p/2223614)
+
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
