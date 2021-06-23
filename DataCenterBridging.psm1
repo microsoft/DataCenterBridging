@@ -39,7 +39,7 @@ Class DCBNetQosFlowControl {
             Switch ($FlowControlPriority.Enabled) {
                 $true {$testState =  $false}
                 $false {$testState =  $true}
-            } 
+            }
         }
 
         Return $testState
@@ -94,7 +94,7 @@ Class DCBNetAdapterQos {
             Switch ($NetAdapterQosState.Enabled) {
                 $true {$testState =  $false}
                 $false {$testState =  $true}
-            } 
+            }
         }
 
         Return $testState
@@ -144,7 +144,7 @@ Class DCBNetQosDcbxSetting {
             Switch ($NetQosDcbx.Willing) {
                 $true {$testState =  $false}
                 $false {$testState =  $true}
-            } 
+            }
         }
 
         Return $testState
@@ -189,10 +189,10 @@ Class DCBNetQosPolicy {
 
         $this.Name = $NetQosPolicy.Name
         $this.PriorityValue8021Action = $NetQosPolicy.PriorityValue8021Action
-        
+
         if ($NetQosPolicy.Template -ne 'None') { $this.Template = $NetQosPolicy.Template }
-        
-        if ($NetQosPolicy.NetDirectPortMatchCondition -ne '0') { 
+
+        if ($NetQosPolicy.NetDirectPortMatchCondition -ne '0') {
             $this.NetDirectPortMatchCondition = $NetQosPolicy.NetDirectPortMatchCondition
         }
 
@@ -214,7 +214,7 @@ Class DCBNetQosPolicy {
                     If ($this.Template) {
                         If ($NetQosPolicy.Template -ne $this.Template) { $teststate = $false }
                     }
-                    
+
                     If ($this.NetDirectPortMatchCondition) {
                         If ($NetQosPolicy.NetDirectPortMatchCondition -ne $this.NetDirectPortMatchCondition) { $teststate = $false }
                     }
@@ -245,7 +245,7 @@ Class DCBNetQosPolicy {
                             Write-Verbose "Corrected the priority value of NetQosPolicy $($this.Name) to $($this.PriorityValue8021Action)"
                         }
                     }
-                    
+
                     if ($this.NetDirectPortMatchCondition) {
                         If ($NetQosPolicy.NetDirectPortMatchCondition -ne $this.NetDirectPortMatchCondition) {
                             Write-Verbose "Correcting the NetDirectPortMatchCondition value of NetQosPolicy $($this.Name) to $($this.NetDirectPortMatchCondition)"
@@ -264,7 +264,7 @@ Class DCBNetQosPolicy {
                     }
                 }
 
-                'Absent' { 
+                'Absent' {
                     Write-Verbose "Removing NetQosPolicy $($this.Name)"
                     Remove-NetQosPolicy -Name $this.Name
                     Write-Verbose "NetQosPolicy $($this.Name) has been removed"
@@ -284,7 +284,7 @@ Class DCBNetQosPolicy {
                     Write-Verbose "NetQosPolicy $($this.Name) has been created"
                 }
                 else { Write-Verbose 'Catastrophic Failure' }
-            } 
+            }
         }
     }
 }
@@ -370,7 +370,7 @@ Class DCBNetQosTrafficClass {
                     }
                 }
 
-                'Absent' { 
+                'Absent' {
                     Write-Verbose "Removing NetQosTrafficClass $($this.Name)"
                     Remove-NetQosTrafficClass -Name $this.Name
                     Write-Verbose "NetQosTrafficClass $($this.Name) has been removed"
@@ -381,7 +381,7 @@ Class DCBNetQosTrafficClass {
                 Write-Verbose "Creating NetQosTrafficClass $($this.Name)"
                 New-NetQosTrafficClass -Name $this.Name -Priority $this.Priority -BandwidthPercentage $this.BandwidthPercentage -Algorithm $this.Algorithm
                 Write-Verbose "NetQosTrafficClass $($this.Name) has been created"
-            } 
+            }
         }
     }
 }
@@ -431,7 +431,7 @@ Function Invoke-BitShift {
     Return [math]::Floor($x * [math]::Pow(2,$shift))
 }
 
-Function Get-LLDPEvents 
+Function Get-LLDPEvents
 {
     param ($RemainingIndexes)
 
@@ -449,7 +449,7 @@ Function Get-LLDPEvents
         {
             #$thisEvent = $_
 
-            if ($remainingIndexes -contains $thisEvent.Properties[0].Value) 
+            if ($remainingIndexes -contains $thisEvent.Properties[0].Value)
             {
                 $remainingIndexes = $remainingIndexes | Where-Object { $_ -ne $thisEvent.Properties[0].Value }
                 $EventPerInterface += $thisEvent
@@ -527,7 +527,7 @@ function Get-LldpTlv
 
     $tlvLen = [convert]::ToInt32($rawBits.Substring(7,9), 2)
     Write-Verbose "Get-LldpTlv - Length: $tlvLen"
-    
+
     Write-Verbose "Get-LldpTlv - End"
     return ([PSCustomObject]@{
         Type = $tlvType
@@ -628,7 +628,7 @@ function Get-LldpPfc
     )
 
     $rawBits = (([System.BitConverter]::ToString($portBytes).Replace('-','')).ToCharArray() | & { process { [System.Convert]::ToString([byte]"0x$_",2).PadLeft(4,'0') } }) -join ''
-    
+
     # PFC flags to Int
     $intPFC = [convert]::ToInt32($rawBits.Substring(8), 2)
 
@@ -655,7 +655,7 @@ function Parse-LLDPPacket {
         SystemDesc           = 6
         OrganizationSpecific = 127
     }
-    
+
     [Flags()] enum PFC_Priorities {
         Priority0 = 1
         Priority1 = 2
@@ -695,7 +695,7 @@ function Parse-LLDPPacket {
             $TLV = Get-LldpTlv $bytes[$offset..($offset+1)]
 
             # offset + 2 (TLV bytes) + TLV Length - 1 (to compensate for index starting at 0)
-            $tlvEnd = $offset + 2 + $TLV.Len - 1 
+            $tlvEnd = $offset + 2 + $TLV.Len - 1
 
             switch ($TLV.Type)
             {
@@ -705,7 +705,7 @@ function Parse-LLDPPacket {
                     $EndOfLLDPDU = $true
                     break
                 }
-                
+
                 $tlvTable.ChassisId
                 {
                     # just need the string Chassis ID back
@@ -755,7 +755,7 @@ function Parse-LLDPPacket {
                             Code 00:80:c2 (IEEE) - Subtype 0x0b (PFC)
                             Code 00:80:c2 (IEEE) - Subtype 0x01 (Default VLAN)
                             Code 00:80:c2 (IEEE) - Subtype 0x03 (Port VLANs|VLAN Name)  --->  There can be multiple entries for this subtype, one for each advertised VLAN.
-                    
+
                     #>
                     # org code
                     $orgCode = "{0:X2}:{1:X2}:{2:X2}" -f $bytes[($offset+2)..($offset+4)]
@@ -818,7 +818,7 @@ function Parse-LLDPPacket {
                             # Get the subtype
                             $subtype = $bytes[($offset+5)]
 
-                            
+
                             switch ($subtype)
                             {
                                 4
@@ -878,7 +878,7 @@ function Parse-LLDPPacket {
             InterfaceName   = (Get-NetAdapter -InterfaceIndex $thisEvent.Properties[0].Value).Name
             InterfaceIndex  = $thisEvent.Properties[0].Value
             DateTime        = $thisEvent.TimeCreated
-            
+
             Destination     = $ethDst # Mandatory
             sourceMac       = $ethSrc   # Mandatory
             EtherType       = $ethType   # Mandatory
@@ -1126,14 +1126,20 @@ function Test-FabricInfo {
         [String[]] $InterfaceIndex,
 
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
-        [String] $SwitchName
+        [String] $SwitchName,
+
+        [Parameter(Mandatory=$false)]
+        [Switch] $AdapterStateOnly,
+
+        [Parameter(Mandatory=$false)]
+        [Switch] $NodeStateOnly
     )
 
-    $pass = '+'
-    $fail = '-'
+    $Pass = '+'
+    $Fail = '-'
     $testsFailed = 0
 
-    #region InterfaceNames
+#region Get Interfaces
     If ($PSBoundParameters.ContainsKey('SwitchName')) {
         $VMSwitchTeam = Get-VMSwitchTeam -Name $SwitchName -ErrorAction SilentlyContinue
 
@@ -1165,57 +1171,49 @@ function Test-FabricInfo {
     ElseIf ($PSBoundParameters.ContainsKey('InterfaceIndex')) {
         $Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
     }
+#endregion Get Interfaces
 
-    $remainingIndexes = $Interfaces.ifIndex
-
-    foreach ($interface in $Interfaces) {
-        if ($interface.Status -eq 'Up') { $PassFail = $pass }
-        Else { $PassFail = $fail; $testsFailed ++ }
-
-        if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is Up: $($interface.Name)" }
-        else { Write-Host "[$PassFail] Is Up: $($interface.Name)" -ForegroundColor Red }
-
-        Remove-Variable PassFail -ErrorAction SilentlyContinue
-
-        if ($Interface.MediaType -eq '802.3') { $PassFail = $pass }
-        Else { $PassFail = $fail; $testsFailed ++ }
-        
-        if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is MediaType 802.3: $($interface.Name)" }
-        else { Write-Host "[$PassFail] Is MediaType 802.3: $($interface.Name)" -ForegroundColor Red }
-
-        Remove-Variable PassFail -ErrorAction SilentlyContinue
-    }
-    #endregion InterfaceNames
+#region Node State
 
     #region LLDP RSAT Tools Install
     $computerInfo = Get-ComputerInfo -Property WindowsInstallationType, csmodel -ErrorAction SilentlyContinue
 
     if ($computerInfo.WindowsInstallationType -eq 'Client') {
         $isLLDPInstalled = Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object Name -like *LLDP*
-        
-        if ($isLLDPInstalled.State -eq 'Installed') { Write-Host "[$Pass] Is Installed: RSAT Data Center Bridging LLDP Tools" }
-        else { 
+
+        if ($isLLDPInstalled.State -eq 'Installed') {
+            Write-Host "[$Pass] Is Installed: RSAT Data Center Bridging LLDP Tools"
+            $toolsInstalled = $true
+        }
+        else {
             Write-Host "[$Fail] Is Installed: RSAT Data Center Bridging LLDP Tools" -ForegroundColor Red
+            $toolsInstalled = $false
             $testsFailed ++
         }
     }
     else {
         $isLLDPInstalled = Get-WindowsFeature 'RSAT-DataCenterBridging-LLDP-Tools' -ErrorAction SilentlyContinue
 
-        if ($isLLDPInstalled.InstallState -eq 'Installed') { Write-Host "[$Pass] Is Installed: RSAT-DataCenterBridging-LLDP-Tools" }
+        if ($isLLDPInstalled.InstallState -eq 'Installed') {
+            Write-Host "[$Pass] Is Installed: RSAT-DataCenterBridging-LLDP-Tools"
+            $toolsInstalled = $true
+        }
         else {
             Write-Host "[$Fail] Is Installed: RSAT-DataCenterBridging-LLDP-Tools" -ForegroundColor Red
+            $toolsInstalled = $false
             $testsFailed ++
         }
     }
-    
+
     Remove-Variable PassFail, isLLDPInstalled -ErrorAction SilentlyContinue
 
     if ($computerInfo.CsModel -ne 'Virtual Machine') {
         Write-Host "[$Pass] Is Physical Host: True"
+        $NodeModel = $computerInfo.CsModel
     }
     else {
         Write-Host "[$Fail] Is Physical Host: False" -ForegroundColor Red
+        $NodeModel = $computerInfo.CsModel
         $testsFailed ++
     }
     #endregion
@@ -1223,52 +1221,101 @@ function Test-FabricInfo {
     #region Event log exists and is enabled
     $isEvtLogEnabled = Get-WinEvent -ListLog 'Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic' -ErrorAction SilentlyContinue
 
-    if ($isEvtLogEnabled) { $PassFail = $pass }
-    Else { $PassFail = $fail; $testsFailed ++ }
+    if ($isEvtLogEnabled) {
+        Write-Host "[$Pass] Is Found: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)"
+        $EvtLogFound = $true
+    }
+    Else {
+        Write-Host "[$Fail] Is Found: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" -ForegroundColor Red
+        $EvtLogFound = $false
+        $testsFailed ++
+    }
 
-    if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is Found: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" }
-    else { Write-Host "[$PassFail] Is Found: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" -ForegroundColor Red }
+    if ($isEvtLogEnabled.IsEnabled) {
+        Write-Host "[$Pass] Is Enabled: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)"
+        $EvtLogEnabled = $true
+    }
+    Else {
+        Write-Host "[$Fail] Is Enabled: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" -ForegroundColor Red
+        $EvtLogEnabled = $true
+        $testsFailed ++
+    }
 
-    Remove-Variable PassFail -ErrorAction SilentlyContinue
-
-    if ($isEvtLogEnabled.IsEnabled) { $PassFail = $pass }
-    Else { $PassFail = $fail; $testsFailed ++ }
-
-    if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is Enabled: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" }
-    else { Write-Host "[$PassFail] Is Enabled: Event Log (Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic)" -ForegroundColor Red }
-    
-    Remove-Variable PassFail -ErrorAction SilentlyContinue
-
-    if ($isEvtLogEnabled.FileSize -lt ($isEvtLogEnabled.MaximumSizeInBytes * .9)) { $PassFail = $pass }
-    Else { $PassFail = $fail; $testsFailed ++ }
-
-    if ($PassFail -eq $pass) { Write-Host "[$PassFail] Is NOT Full: Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic" }
-    else { Write-Host "[$PassFail] Is NOT Full: Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic" -ForegroundColor Red }
-    Remove-Variable PassFail -ErrorAction SilentlyContinue
+    if ($isEvtLogEnabled.FileSize -lt ($isEvtLogEnabled.MaximumSizeInBytes * .9)) {
+        Write-Host "[$Pass] Is NOT Full: Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic"
+        $isNotFull = $true
+    }
+    Else {
+        Write-Host "[$Fail] Is NOT Full: Microsoft-Windows-LinkLayerDiscoveryProtocol/Diagnostic" -ForegroundColor Red
+        $isNotFull = $false
+        $testsFailed ++
+    }
     #endregion
 
-    #region Get Fabric Info
+    if ($NodeStateOnly) {
+        $NodeState = @{}
+
+        $NodeState = [PSCustomObject] @{
+            Node          = $Env:COMPUTERNAME
+            Model         = $NodeModel
+            LLDPInstalled = $toolsInstalled
+            EvtLogFound   = $EvtLogFound
+            EvtLogEnabled = $EvtLogEnabled
+            EvtLogNotFull    = $isNotFull
+        }
+
+        Return $NodeState
+    }
+#endregion Node State
+
+#region Adapter State
+    $remainingIndexes = $Interfaces.ifIndex
+
+    <#
+        IndexesMissingEvents is returned from Get-LLDPEvents. We reset before calling the function; any interface index found in this variable
+        after the function call did not have an LLDP 10041 packet in the event log.
+    #>
     $global:IndexesMissingEvents = $Null
     $event = Get-LLDPEvents -RemainingIndexes $remainingIndexes
 
-    $remainingIndexes | ForEach-Object {
-        $thisRemainingIndex = $_
+    if ($AdapterStateOnly) { $AdapterState = @() }
+    foreach ($interface in $Interfaces) {
+        if ($interface.Status -eq 'Up') { Write-Host "[$Pass] Is Up: $($interface.Name)" }
+        Else { Write-Host "[$Fail] Is Up: $($interface.Name)" -ForegroundColor Red; $testsFailed ++ }
 
-        if ($thisRemainingIndex -notin $global:IndexesMissingEvents) {
-            $PassFail = $Pass
+        if ($Interface.MediaType -eq '802.3') { Write-Host "[$Pass] Is MediaType 802.3: $($interface.Name)" }
+        Else { Write-Host "[$Fail] Is MediaType 802.3: $($interface.Name)" -ForegroundColor Red; $testsFailed ++ }
 
-            Write-Host "[$PassFail] Is Found: LLDP Packet for index $thisRemainingIndex"
+        if ($interface.ifIndex -notin $global:IndexesMissingEvents) {
+            Write-Host "[$Pass] Is Found: LLDP Packet for index $($interface.Name) [Index $($interface.ifIndex)]"
+            $EventExistsforIndex = $true
+
             Remove-Variable PassFail -ErrorAction SilentlyContinue
         }
         Else {
-            $testsFailed ++
-            $PassFail = $fail
+            Write-Host "[$Fail] Is Found: LLDP Packet for index $($interface.Name) [Index $($interface.ifIndex)]" -ForegroundColor Red
+            $EventExistsforIndex = $false
 
-            Write-Host "[$PassFail] Is Found: LLDP Packet for index $thisRemainingIndex" -ForegroundColor Red
-            Remove-Variable PassFail -ErrorAction SilentlyContinue
+            $testsFailed ++
+        }
+
+        if ($AdapterStateOnly) {
+            $thisAdapterState = @{}
+
+            $thisAdapterState = [PSCustomObject] @{
+                Name            = $interface.Name
+                Status          = $interface.Status
+                MediaType       = $interface.MediaType
+                LLDPEventExists = $EventExistsforIndex
+            }
+
+            $AdapterState += $thisAdapterState
         }
     }
-    #endregion
+
+    if ($AdapterStateOnly) { return $AdapterState }
+
+#endregion Adapter State
 
     if ($testsFailed -eq 0) { Write-Host 'Successfully passed all tests' -ForegroundColor Green }
     else { Write-Host "`rFailed $testsFailed tests. Please review the output before continuing." -ForegroundColor Red }
@@ -1289,7 +1336,7 @@ function Enable-FabricInfo {
     $computerInfo = Get-ComputerInfo -Property WindowsInstallationType, csmodel -ErrorAction SilentlyContinue
 
     if ($computerInfo.CsModel -eq 'Virtual Machine') { throw 'Cannot be enabled on a virtual machine.' }
-    
+
     if ($computerInfo.WindowsInstallationType -eq 'Client') {
         $isLLDPInstalled = Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object Name -like *LLDP*
 
@@ -1355,39 +1402,39 @@ function Enable-FabricInfo {
     Write-Host    'Please run Test-FabricInfo to determine if all requirements have been met'
 }
 
-function Get-FabricInfo 
+function Get-FabricInfo
 {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceNames', Position=0)]
-        [String[]] 
+        [String[]]
         $InterfaceNames,
 
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceIndex')]
-        [String[]] 
+        [String[]]
         $InterfaceIndex,
 
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
-        [String] 
+        [String]
         $SwitchName
     )
 
-    If ($PSBoundParameters.ContainsKey('SwitchName')) 
+    If ($PSBoundParameters.ContainsKey('SwitchName'))
     {
         $VMSwitch     = Get-VMSwitch -Name $SwitchName -ErrorAction SilentlyContinue
         $VMSwitchTeam = Get-VMSwitchTeam -Name $SwitchName -ErrorAction SilentlyContinue
 
-        if ($VMSwitch -and $VMSwitchTeam) 
-        { 
-            $Interfaces = Get-Interfaces -SwitchName $SwitchName 
+        if ($VMSwitch -and $VMSwitchTeam)
+        {
+            $Interfaces = Get-Interfaces -SwitchName $SwitchName
         }
-        else 
-        { 
+        else
+        {
             # jakehr: using {return (Write-Error -EA Stop)} will send a terminating error back to the calling program and ends function execution. Good for automation.
             return (Write-Error "'$SwitchName' is not a Switch Embedded Team" -EA Stop)
         }
     }
-    elseif ($PSBoundParameters.ContainsKey('InterfaceNames')) 
+    elseif ($PSBoundParameters.ContainsKey('InterfaceNames'))
     {
         [array]$NetAdapters = Get-NetAdapter -Name $InterfaceNames -ErrorAction SilentlyContinue
         # Not sure I understand this PowerShell funkyness but if I have only 1 adapter, the 'Count' Method is not available
@@ -1398,29 +1445,29 @@ function Get-FabricInfo
 
         $AdapterCount = $NetAdapters.Count
 
-        If (-not($InterfaceNames.Count -eq $AdapterCount)) 
+        If (-not($InterfaceNames.Count -eq $AdapterCount))
         {
-            if ($NetAdapters) 
+            if ($NetAdapters)
             {
-                foreach ($Adapter in ($InterfaceNames -notmatch $NetAdapters.Name)) 
+                foreach ($Adapter in ($InterfaceNames -notmatch $NetAdapters.Name))
                 {
                     $enumError = "The interface `'$Adapter`' was not found"
                 }
             }
-            else 
-            { 
+            else
+            {
                 $enumError = "No interfaces found with the specified names"
             }
 
             #break  <<<<< jakehr: implies we always leave Get-FabricInfo in this code path, so converting this to a terminating error return
             return (Write-Error "Interface enumeration failure. $enumError" -EA Stop)
         }
-        else 
-        { 
-            $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames 
+        else
+        {
+            $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames
         }
     }
-    elseIf ($PSBoundParameters.ContainsKey('InterfaceIndex')) 
+    elseIf ($PSBoundParameters.ContainsKey('InterfaceIndex'))
     {
         [array]$Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
 
@@ -1447,22 +1494,22 @@ function Get-FabricInfo
         {
             return (Write-Error "Failed to discover a Switch Embedded Team." -EA Stop)
         }
-        
-        
+
+
     }
 
     $remainingIndexes = $Interfaces.ifIndex
 
     $event = Get-LLDPEvents -RemainingIndexes $remainingIndexes
 
-    if ($event.count -ne $remainingIndexes.Count) 
+    if ($event.count -ne $remainingIndexes.Count)
     {
-        # jakehr: convert to warning text from scary red text    
+        # jakehr: convert to warning text from scary red text
         Write-Warning "Could not find an LLDP Packet one or more of the interfaces specified. Please run Test-FabricInfo."
     }
-    else 
-    { 
-        $InterfaceTable = Parse-LLDPPacket -Events $event 
+    else
+    {
+        $InterfaceTable = Parse-LLDPPacket -Events $event
     }
 
     #Convert To/From JSON to make a simple object with property names
@@ -1486,7 +1533,7 @@ function Get-FabricInfo
         #$thisInterface = $_
         $InterfaceBinding = Get-NetAdapterBinding -Name $thisInterface.Name -ComponentID ms_tcpip, vms_pp
 
-        if (($InterfaceBinding | Where-Object ComponentID -eq 'vms_pp').Enabled -eq $true ) 
+        if (($InterfaceBinding | Where-Object ComponentID -eq 'vms_pp').Enabled -eq $true )
         {
             if ($HostVNICTeamMap)
             {
@@ -1501,9 +1548,9 @@ function Get-FabricInfo
                 }
             }
         }
-        else 
-        { 
-            [array]$HostNetAdapterWithIP = $thisInterface 
+        else
+        {
+            [array]$HostNetAdapterWithIP = $thisInterface
         }
 
         # This handles situations where there are no mappings between pNIC and host vNIC, which means no host vNICs parent waw discovered
@@ -1536,14 +1583,14 @@ function Get-FabricInfo
                 $thisHostNetAdapterInterfaceDetails.Subnet = "$($thisHostNetAdapterInterfaceDetails.Network)/$($thisHostNetAdapterInterfaceDetails.PrefixLength)"
 
                 # Device is virtual
-                if ($thisHostNetAdapter.ConnectorPresent -eq $false) 
+                if ($thisHostNetAdapter.ConnectorPresent -eq $false)
                 {
-                    if ($thisHostVNICParentAdapter.IsolationSetting.IsolationMode -eq 'VLAN') 
+                    if ($thisHostVNICParentAdapter.IsolationSetting.IsolationMode -eq 'VLAN')
                     {
                         $thisHostNetAdapterInterfaceDetails.VLAN = $thisHostVNICParentAdapter.IsolationSetting.DefaultIsolationID
                     }
 
-                    Switch ($thisHostVNICParentAdapter.VlanSetting.OperationMode) 
+                    Switch ($thisHostVNICParentAdapter.VlanSetting.OperationMode)
                     {
                         'Access' { $thisHostNetAdapterInterfaceDetails.VLAN = $thisHostVNICParentAdapter.VlanSetting.AccessVLANID }
                         'Trunk' { $thisHostNetAdapterInterfaceDetails.VLAN = $thisHostVNICParentAdapter.VlanSetting.NativeVlanId }
@@ -1552,7 +1599,7 @@ function Get-FabricInfo
                     $thisHostNetAdapterInterfaceDetails.VMNetworkAdapterName = $thisHostVNICParentAdapter.Name
                     $thisHostNetAdapterInterfaceDetails.NetAdapterHostVNICName = $HostNetAdapterWithIP.Name
                 }
-                else 
+                else
                 {
                     $thisHostNetAdapterInterfaceDetails.VLAN = (Get-NetAdapterAdvancedProperty -Name $thisHostNetAdapter.Name -RegistryKeyword VLANID -ErrorAction SilentlyContinue).RegistryValue
                 }
