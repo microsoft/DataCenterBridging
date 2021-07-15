@@ -638,6 +638,70 @@ function Get-LldpPfc
 }
 
 
+function Test-LbfoEnabled
+{
+    param (
+        [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceNames', Position=0)]
+        [String[]] $InterfaceNames,
+
+        [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceIndex')]
+        [UInt32[]] $InterfaceIndex,
+
+        [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
+        [String] $SwitchName
+    )
+
+    # LBFO detection
+    [array]$isLbfoUsed = Get-NetLbfoTeam -EA SilentlyContinue
+    if ($isLbfoUsed)
+    {
+        # throw a warning when the interface or switch is using LBFO
+        if ($PSBoundParameters.ContainsKey('SwitchName'))
+        {
+            # skip this check if the switch is a teamed interface (SET)
+            $vSwitch = Get-VMSwitch -SwitchName $SwitchName -EA SilentlyContinue
+
+            if (-NOT $vSwitch)
+            {
+                return (Write-Error "No switch found named $SwitchName." -EA Stop)
+            }
+            elseif ($vSwitch.EmbeddedTeamingEnabled -eq $false) 
+            {
+                $switchAdapterDesc = $vSwitch | ForEach-Object { $_.NetAdapterInterfaceDescription }
+                $switchAdapterName = Get-NetAdapter -InterfaceDescription $switchAdapterDesc -EA SilentlyContinue | ForEach-Object Name
+
+                if ($isLbfoUsed.Name -contains $switchAdapterName)
+                {
+                    $LbfoUsed = Get-NetAdapter -InterfaceAlias $switchAdapterName
+                }
+            }
+        }
+        elseif ($PSBoundParameters.ContainsKey('InterfaceNames')) 
+        {
+            [String[]]$lbfoTeamMem = Get-NetLbfoTeamMember -EA SilentlyContinue | ForEach-Object Name
+
+            $LbfoUsed = $InterfaceNames | ForEach-Object { if ($lbfoTeamMem -contains $_) { $_ } }
+        }
+        elseif ($PSBoundParameters.ContainsKey('InterfaceIndex')) 
+        {
+            [String[]]$lbfoTeamMem = Get-NetLbfoTeamMember -EA SilentlyContinue | ForEach-Object Name
+
+            [string[]]$InterfaceNames = Get-NetAdapter -InterfaceIndex $InterfaceIndex -EA SilentlyContinue | ForEach-Object Name
+
+            $LbfoUsed = $InterfaceNames | ForEach-Object { if ($lbfoTeamMem -contains $_) { $_ } }
+        }
+    }
+
+    if ($LbfoUsed)
+    {
+        Write-Warning "LBFO Teams are not supported. DataCenterBrinding cmdlets may not operate correctly or provide inaccurate results. Microsoft recommends using Switch Embedded Teaming (SET): https://aka.ms/DownWithLBFO"
+        return $true
+    }
+
+    # no LBFO detected
+    return $false
+}
+
 
 
 function Parse-LLDPPacket {
@@ -1276,7 +1340,9 @@ function Test-FabricInfo {
         after the function call did not have an LLDP 10041 packet in the event log.
     #>
     $global:IndexesMissingEvents = $Null
-    $event = Get-LLDPEvents -RemainingIndexes $remainingIndexes
+
+    # doesn't appear to be used...
+    $lldpEvent = Get-LLDPEvents -RemainingIndexes $remainingIndexes
 
     if ($AdapterStateOnly) { $AdapterState = @() }
     foreach ($interface in $Interfaces) {
@@ -1327,15 +1393,29 @@ function Enable-FabricInfo {
         [String[]] $InterfaceNames,
 
         [Parameter(Mandatory=$true, ParameterSetName = 'InterfaceIndex')]
-        [String[]] $InterfaceIndex,
+        [UInt32[]] $InterfaceIndex,
 
         [Parameter(Mandatory=$true, ParameterSetName = 'SwitchName')]
         [String] $SwitchName
     )
 
+    # run LBFO testing. Used to throw a warning and nothing else.
+    if ($PSBoundParameters.ContainsKey('SwitchName'))
+    {
+        $null = Test-LbfoEnabled -SwitchName $SwitchName
+    }
+    elseif ($PSBoundParameters.ContainsKey('InterfaceIndex')) 
+    {
+        $null = Test-LbfoEnabled -InterfaceIndex $InterfaceIndex
+    }
+    elseif ($PSBoundParameters.ContainsKey('InterfaceNames')) 
+    {
+        $null = Test-LbfoEnabled -InterfaceNames $InterfaceNames
+    }
+
     $computerInfo = Get-ComputerInfo -Property WindowsInstallationType, csmodel -ErrorAction SilentlyContinue
 
-    if ($computerInfo.CsModel -eq 'Virtual Machine') { throw 'Cannot be enabled on a virtual machine.' }
+    if ($computerInfo.CsModel -eq 'Virtual Machine') { return (Write-Error 'Cannot be enabled on a virtual machine.' -EA Stop) }
 
     if ($computerInfo.WindowsInstallationType -eq 'Client') {
         $isLLDPInstalled = Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object Name -like *LLDP*
@@ -1419,8 +1499,11 @@ function Get-FabricInfo
         $SwitchName
     )
 
-    If ($PSBoundParameters.ContainsKey('SwitchName'))
+
+    if ($PSBoundParameters.ContainsKey('SwitchName'))
     {
+        $lbfoEnabled = Test-LbfoEnabled -SwitchName $SwitchName
+        
         $VMSwitch     = Get-VMSwitch -Name $SwitchName -ErrorAction SilentlyContinue
         $VMSwitchTeam = Get-VMSwitchTeam -Name $SwitchName -ErrorAction SilentlyContinue
 
@@ -1436,6 +1519,8 @@ function Get-FabricInfo
     }
     elseif ($PSBoundParameters.ContainsKey('InterfaceNames'))
     {
+        $lbfoEnabled = Test-LbfoEnabled -InterfaceNames $InterfaceNames
+
         [array]$NetAdapters = Get-NetAdapter -Name $InterfaceNames -ErrorAction SilentlyContinue
         # Not sure I understand this PowerShell funkyness but if I have only 1 adapter, the 'Count' Method is not available
         #     Therefore, we need to check if there's only 1 interface name and make sure there's an entry in NetAdapters
@@ -1464,11 +1549,13 @@ function Get-FabricInfo
         }
         else
         {
-            $Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames
+            [array]$Interfaces = Get-Interfaces -InterfaceNames $InterfaceNames
         }
     }
     elseIf ($PSBoundParameters.ContainsKey('InterfaceIndex'))
     {
+        $lbfoEnabled = Test-LbfoEnabled -InterfaceIndex $InterfaceIndex
+
         [array]$Interfaces = Get-Interfaces -InterfaceIndex $InterfaceIndex
 
         if (-NOT $Interfaces)
@@ -1477,39 +1564,30 @@ function Get-FabricInfo
         }
     }
 
+    # Going to try and find a SET switch. This is not a terminating error at this point.
     if (-NOT $SwitchName)
     {
+        
         $VMSwitchTeam = Get-VMSwitchTeam -EA SilentlyContinue
 
         if ($VMSwitchTeam)
         {
             $SwitchName = $VMSwitchTeam | Where-Object { $_.NetAdapterInterfaceDescription[0] -in ($Interfaces.InterfaceDescription) } | ForEach-Object Name
-
-            if (-NOT $SwitchName)
-            {
-                return (Write-Error "Failed to discover a Switch Embedded Team." -EA Stop)
-            }
         }
-        else
-        {
-            return (Write-Error "Failed to discover a Switch Embedded Team." -EA Stop)
-        }
-
-
     }
 
-    $remainingIndexes = $Interfaces.ifIndex
+    [int[]]$remainingIndexes = $Interfaces.ifIndex
 
-    $event = Get-LLDPEvents -RemainingIndexes $remainingIndexes
+    $lldpEvent = Get-LLDPEvents -RemainingIndexes $remainingIndexes
 
-    if ($event.count -ne $remainingIndexes.Count)
+    if ($lldpEvent.count -ne $remainingIndexes.Count)
     {
         # jakehr: convert to warning text from scary red text
         Write-Warning "Could not find an LLDP Packet one or more of the interfaces specified. Please run Test-FabricInfo."
     }
     else
     {
-        $InterfaceTable = Parse-LLDPPacket -Events $event
+        $InterfaceTable = Parse-LLDPPacket -Events $lldpEvent
     }
 
     #Convert To/From JSON to make a simple object with property names
@@ -1522,7 +1600,7 @@ function Get-FabricInfo
     #$portOrder = $ChassisGroups.Group | Sort sourceMac | Select InterfaceName, InterfaceIndex, ChassisID, SourceMac
 
     $InterfaceDetails = @()
-    $HostNetAdapters = @()
+    #$HostNetAdapters = @()
     $interfaceMap = @()
 
     # force array since there may only be a single vNIC team map, or a single NIC "team"
@@ -1553,9 +1631,9 @@ function Get-FabricInfo
             [array]$HostNetAdapterWithIP = $thisInterface
         }
 
-        # This handles situations where there are no mappings between pNIC and host vNIC, which means no host vNICs parent waw discovered
-        # In this scenario we can assume $thisInterface is a pNIC without a map.
-        if (-NOT $HostNetAdapterWithIP)
+        # This handles situations where there are no mappings between pNIC and host vNIC, which means no host vNICs were discovered
+        # In this scenario we can assume $thisInterface is a pNIC without a map or there is no SET switch.
+        if (-NOT $HostNetAdapterWithIP -and $PSBoundParameters.ContainsKey('SwitchName'))
         {
             $thisHostVNICParentAdapter = $thisInterface
 
@@ -1568,7 +1646,7 @@ function Get-FabricInfo
         foreach ($thisHostNetAdapter in $HostNetAdapterWithIP)
         {
             #$thisHostNetAdapter = $_
-            $thisIP = Get-NetIPAddress -InterfaceIndex $thisHostNetAdapter.ifIndex -AddressFamily IPv4
+            $thisIP = Get-NetIPAddress -InterfaceIndex $thisHostNetAdapter.ifIndex -AddressFamily IPv4 -EA SilentlyContinue
 
             if ($thisIP) {
                 $thisHostNetAdapterInterfaceDetails = [InterfaceDetails]::new()
