@@ -806,7 +806,6 @@ function Parse-LLDPPacket {
                                 default
                                 {
                                     Write-Verbose "Ignoring Organization Unique Code 00:80:C2 (IEEE), subtype $subType."
-                                    Remove-Variable tlvName -EA SilentlyContinue
                                     break
                                 }
                             }
@@ -840,7 +839,6 @@ function Parse-LLDPPacket {
                         default
                         {
                             Write-Verbose "Ignoring Organization Unique Code $orgCode."
-                            Remove-Variable tlvName -EA SilentlyContinue
                             break
                         }
                     }
@@ -890,14 +888,18 @@ function Parse-LLDPPacket {
             SystemDesc      = $SystemDesc      # Optional
 
 
-            NativeVLAN = $NativeVLAN        # IEEE 802.1 TLV:127 Subtype:1
-            VLANID     = $VLANID            # IEEE 802.1 TLV:127 Subtype:3
-            FrameSize  = $FrameSize         # IEEE 802.3 TLV:127 Subtype:4
-            PFC        = $PFC | Sort-Object # IEEE 802.1 TLV:127 Subtype:11
+            NativeVLAN      = $NativeVLAN        # IEEE 802.1 TLV:127 Subtype:1
+            VLANID          = $VLANID            # IEEE 802.1 TLV:127 Subtype:3
+            FrameSize       = $FrameSize         # IEEE 802.3 TLV:127 Subtype:4
+            PFC             = $PFC | Sort-Object # IEEE 802.1 TLV:127 Subtype:11
 
-            Bytes = $bytes # Raw Data from Packet
+            Bytes           = $bytes # Raw Data from Packet
         }
+
+        # clean up to prevent bad output
+        Remove-Variable thisEvent, ethDst, ethSrc, ethType, ChassisID, PortId, PortDescription, SystemName, SystemDesc, NativeVLAN, VLANID, FrameSize, PFC, bytes -EA SilentlyContinue
     }
+
 
     return $Table
 }
